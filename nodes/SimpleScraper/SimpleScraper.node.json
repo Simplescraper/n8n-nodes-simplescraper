@@ -1,0 +1,18 @@
+{
+	"node": "n8n-nodes-simplescraper",
+	"nodeVersion": "1.0",
+	"codexVersion": "1.0",
+	"categories": ["Development", "Developer Tools"],
+	"resources": {
+		"credentialDocumentation": [
+			{
+				"url": "https://simplescraper.io/docs/api-guide"
+			}
+		],
+		"primaryDocumentation": [
+			{
+				"url": "https://github.com/simplescraper/n8n-nodes-simplescraper#readme"
+			}
+		]
+	}
+}
