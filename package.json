@@ -29,7 +29,28 @@
 		"dev": "n8n-node dev",
 		"lint": "n8n-node lint",
 		"lint:fix": "n8n-node lint --fix",
-		"release": "n8n-node release"
+		"release": "release-it"
+	},
+	"release-it": {
+		"git": {
+			"commitMessage": "chore(release): ${version}",
+			"tagName": "v${version}",
+			"requireCleanWorkingDir": true,
+			"requireBranch": "main"
+		},
+		"github": {
+			"release": true,
+			"releaseName": "v${version}"
+		},
+		"npm": {
+			"publish": false
+		},
+		"hooks": {
+			"before:init": [
+				"npm run lint",
+				"npm run build"
+			]
+		}
 	},
 	"files": [
 		"dist"
