@@ -40,6 +40,17 @@ Scrape any URL without a saved recipe.
 |---|---|
 | **Extract URLs** | Discovers all URLs from a website's sitemap. No credits consumed. |
 
+## Example: scrape every blog post on a site
+
+Combine three operations to discover blog URLs and extract their content as clean markdown:
+
+1. **URL > Extract URLs** with `https://simplescraper.io` - returns every URL in the site's sitemap. No credits consumed.
+2. **Split Out** (n8n core node) on the `urls` field - turns the array into one item per URL.
+3. **Filter** (n8n core node) keeping items where the URL contains `"blog"`.
+4. **Page > Extract Data** with `Include Markdown` enabled, URL set to `{{ $json.urls }}` - pulls clean markdown from each filtered blog URL.
+
+Useful for content audits, SEO inventories, or building a RAG corpus from a public site's blog. The Extract URLs step is free; each blog scrape costs 1 credit.
+
 ## Long-running scrapes
 
 For recipes that take more than ~30 seconds, the **Run** operation uses async mode by default and returns immediately with a `results_id` and `status: "running"`. Use the **Get Latest Results** operation (or an HTTP Request node hitting `GET /v1/results/{results_id}`) to poll until `status` becomes `completed`.

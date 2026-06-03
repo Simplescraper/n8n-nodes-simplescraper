@@ -43,3 +43,12 @@ jobs:
       # handshake automatically.
       - name: Publish to npm with provenance (via OIDC)
         run: npm publish --provenance --access public
+
+      # Wait for npm CDN propagation, then run the same scanner n8n's verifiers
+      # use. Catches issues that would otherwise show up only during the n8n
+      # Creator Portal verification review.
+      - name: Wait for npm CDN propagation
+        run: sleep 45
+
+      - name: Run n8n verification scanner against the published version
+        run: npx @n8n/scan-community-package n8n-nodes-simplescraper
