@@ -6,7 +6,9 @@ on:
     tags:
       - 'v*'
 
-# Required for npm provenance attestation
+# id-token: write is what lets the workflow request an OIDC token from GitHub,
+# which npm exchanges for a short-lived publish credential via the Trusted
+# Publisher we configured on npmjs.com. No long-lived NPM_TOKEN secret needed.
 permissions:
   id-token: write
   contents: read
@@ -25,13 +27,19 @@ jobs:
           node-version: '22'
           registry-url: 'https://registry.npmjs.org'
 
+      # Trusted Publishers (OIDC) requires npm >= 11.5.1. Node 22 ships with npm
+      # 10.x by default, which would fall back to token auth. Upgrade explicitly.
+      - name: Upgrade npm for OIDC Trusted Publisher support
+        run: npm install -g npm@latest
+
       - name: Install dependencies
         run: npm ci
 
       - name: Build
         run: npm run build
 
-      - name: Publish to npm with provenance
+      # No NODE_AUTH_TOKEN env. With the Trusted Publisher on npm + id-token
+      # permission above, npm publish detects the GHA context and does the OIDC
+      # handshake automatically.
+      - name: Publish to npm with provenance (via OIDC)
         run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
