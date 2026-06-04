@@ -18,7 +18,7 @@
 	},
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/Simplescraper/n8n-nodes-simplescraper.git"
+		"url": "https://github.com/simplescraper/n8n-nodes-simplescraper.git"
 	},
 	"publishConfig": {
 		"provenance": true

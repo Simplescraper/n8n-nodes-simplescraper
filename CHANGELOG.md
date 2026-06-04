@@ -8,7 +8,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 - Codex `categories` no longer includes the unsupported value "Developer Tools" (flagged in n8n verification manual review). Now `["Development", "Data & Storage"]` - both valid n8n categories.
-- `primaryDocumentation` URL uses the canonical `Simplescraper` GitHub owner casing.
 
 ## [0.1.3] - 2026-06-03
 
@@ -41,8 +40,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Recipe dropdown paginates (50 per page) so accounts with many recipes work correctly.
 - Long-running scrapes return immediately with `results_id` for async polling against `GET /v1/results/:resultsId`.
 
-[0.1.4]: https://github.com/Simplescraper/n8n-nodes-simplescraper/compare/v0.1.3...v0.1.4
-[0.1.3]: https://github.com/Simplescraper/n8n-nodes-simplescraper/compare/v0.1.2...v0.1.3
-[0.1.2]: https://github.com/Simplescraper/n8n-nodes-simplescraper/compare/v0.1.1...v0.1.2
-[0.1.1]: https://github.com/Simplescraper/n8n-nodes-simplescraper/compare/v0.1.0...v0.1.1
-[0.1.0]: https://github.com/Simplescraper/n8n-nodes-simplescraper/releases/tag/v0.1.0
+[0.1.4]: https://github.com/simplescraper/n8n-nodes-simplescraper/compare/v0.1.3...v0.1.4
+[0.1.3]: https://github.com/simplescraper/n8n-nodes-simplescraper/compare/v0.1.2...v0.1.3
+[0.1.2]: https://github.com/simplescraper/n8n-nodes-simplescraper/compare/v0.1.1...v0.1.2
+[0.1.1]: https://github.com/simplescraper/n8n-nodes-simplescraper/compare/v0.1.0...v0.1.1
+[0.1.0]: https://github.com/simplescraper/n8n-nodes-simplescraper/releases/tag/v0.1.0

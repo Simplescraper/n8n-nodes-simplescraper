@@ -61,7 +61,7 @@ AI Extract follows the same pattern - if the response status is `running`, poll 
 
 - [Simplescraper](https://simplescraper.io) - the service
 - [API documentation](https://simplescraper.io/docs/api-guide) - endpoint reference
-- [Report a bug or request a feature](https://github.com/Simplescraper/n8n-nodes-simplescraper/issues)
+- [Report a bug or request a feature](https://github.com/simplescraper/n8n-nodes-simplescraper/issues)
 - [npm package](https://www.npmjs.com/package/n8n-nodes-simplescraper)
 
 ## License
