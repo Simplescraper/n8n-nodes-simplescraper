@@ -1,5 +1,9 @@
 import type {
+	IDataObject,
+	IExecuteSingleFunctions,
 	ILoadOptionsFunctions,
+	IN8nHttpFullResponse,
+	INodeExecutionData,
 	INodeListSearchItems,
 	INodeListSearchResult,
 	INodeType,
@@ -12,6 +16,55 @@ import { NodeConnectionTypes } from 'n8n-workflow';
 
 const BASE_URL = 'https://api.simplescraper.io/v1';
 
+/* ─── Response shaping ───────────────────────────────────────────────────── */
+
+type ScrapeRunResult = {
+	results_id?: string;
+	date_completed?: string;
+	status?: string;
+	errors?: IDataObject[];
+	data?: IDataObject[];
+	screenshots?: Array<{ url_uid?: string | number; screenshot?: string }>;
+};
+
+// One item per scraped row. Run-level fields (results_id, status, errors, ...) are
+// carried on each row; the row's own fields win on any name clash. The page
+// screenshot is attached by url_uid, but only when the run captured screenshots.
+async function splitScrapedRows(
+	this: IExecuteSingleFunctions,
+	_items: INodeExecutionData[],
+	response: IN8nHttpFullResponse,
+): Promise<INodeExecutionData[]> {
+	const { data = [], screenshots = [], ...run } = (response.body ?? {}) as ScrapeRunResult;
+	if (data.length === 0) {
+		return [{ json: { ...run } }];
+	}
+	const screenshotByUid = new Map<string, string | undefined>();
+	for (const shot of screenshots) {
+		if (shot.url_uid != null) {
+			screenshotByUid.set(String(shot.url_uid), shot.screenshot);
+		}
+	}
+	return data.map((row) => {
+		const json: IDataObject = { ...run, ...row };
+		if (screenshots.length > 0 && row.url_uid != null) {
+			json.screenshot = screenshotByUid.get(String(row.url_uid)) ?? null;
+		}
+		return { json };
+	});
+}
+
+// One item per discovered URL.
+async function splitExtractedUrls(
+	this: IExecuteSingleFunctions,
+	_items: INodeExecutionData[],
+	response: IN8nHttpFullResponse,
+): Promise<INodeExecutionData[]> {
+	const data = (response.body as IDataObject)?.data as IDataObject | undefined;
+	const urls = (data?.urls as string[] | undefined) ?? [];
+	return urls.map((url) => ({ json: { url } }));
+}
+
 /* ─── displayOptions helpers ─────────────────────────────────────────────── */
 
 const showForRecipe = { resource: ['recipe'] };
@@ -20,6 +73,14 @@ const showForPage = { resource: ['page'] };
 
 const showForRecipeRun = { resource: ['recipe'], operation: ['run'] };
 const showForRecipeLatest = { resource: ['recipe'], operation: ['getLatest'] };
+const showForRecipeResultsById = { resource: ['recipe'], operation: ['getResultsById'] };
+
+/* The recipe picker only applies to operations that act on a saved recipe.
+   Get Results by ID is keyed on a results_id, so it must NOT show the picker. */
+const showForRecipeWithRecipeId = {
+	resource: ['recipe'],
+	operation: ['run', 'getLatest', 'getHistory'],
+};
 const showForUrlExtract = { resource: ['url'], operation: ['extractUrls'] };
 const showForPageExtract = { resource: ['page'], operation: ['extract'] };
 const showForPageAiExtract = { resource: ['page'], operation: ['aiExtract'] };
@@ -56,6 +117,9 @@ const recipeOperationDescription: INodeProperties = {
 					method: 'GET',
 					url: '=/recipes/{{$parameter.recipeId}}/results-latest',
 				},
+				output: {
+					postReceive: [splitScrapedRows],
+				},
 			},
 		},
 		{
@@ -70,18 +134,35 @@ const recipeOperationDescription: INodeProperties = {
 				},
 			},
 		},
+		{
+			name: 'Get Results by ID',
+			value: 'getResultsById',
+			action: 'Get results by ID',
+			description: 'Fetch a run\'s results by its results_id (from an async Run or the New Results trigger)',
+			routing: {
+				request: {
+					method: 'GET',
+					url: '=/results/{{$parameter.resultsId}}',
+				},
+				output: {
+					postReceive: [splitScrapedRows],
+				},
+			},
+		},
 	],
 	default: 'run',
 };
 
-/* Recipe ID — shared by all three recipe operations */
+/* Recipe ID — shown for the recipe operations that act on a saved recipe
+   (Run, Get Latest Results, Get History). Get Results by ID is keyed on a
+   results_id instead, so it deliberately excludes this picker. */
 const recipeIdDescription: INodeProperties = {
 	displayName: 'Recipe',
 	name: 'recipeId',
 	type: 'resourceLocator',
 	default: { mode: 'list', value: '' },
 	required: true,
-	displayOptions: { show: showForRecipe },
+	displayOptions: { show: showForRecipeWithRecipeId },
 	description: 'The saved Simplescraper recipe to use',
 	modes: [
 		{
@@ -118,6 +199,29 @@ const recipeRunDescription: INodeProperties[] = [
 			send: {
 				type: 'body',
 				property: 'sourceUrl',
+				value: '={{$value || undefined}}',
+			},
+		},
+	},
+	{
+		displayName: 'URLs',
+		name: 'urls',
+		type: 'string',
+		typeOptions: {
+			multipleValues: true,
+			multipleValueButtonText: 'Add URL',
+		},
+		default: [],
+		placeholder: 'https://example.com/page',
+		displayOptions: { show: showForRecipeRun },
+		description:
+			"Scrape many pages through this recipe in one run. Returns a results_id to fetch later with Get Results by ID. Replaces the recipe's saved crawler list and always runs asynchronously. Up to 5000 URLs (scrape count is capped by your available credits).",
+		routing: {
+			send: {
+				type: 'body',
+				property: 'urls',
+				/* Only send the array when the user has added at least one URL */
+				value: '={{ $value && $value.length ? $value : undefined }}',
 			},
 		},
 	},
@@ -185,6 +289,51 @@ const recipeResultsPaginationDescription: INodeProperties[] = [
 	},
 ];
 
+/* Get Results by ID — fetch a run by its results_id (not recipe-scoped) */
+const recipeResultsByIdDescription: INodeProperties[] = [
+	{
+		displayName: 'Results ID',
+		name: 'resultsId',
+		type: 'string',
+		default: '',
+		required: true,
+		placeholder: 'e.g. abc123',
+		displayOptions: { show: showForRecipeResultsById },
+		description:
+			'The results_id of the run to fetch. Comes from a Run a Recipe async run or the New Results trigger.',
+	},
+	{
+		displayName: 'Limit',
+		name: 'resultsByIdLimit',
+		type: 'number',
+		default: 50,
+		typeOptions: { minValue: 1 },
+		displayOptions: { show: showForRecipeResultsById },
+		description: 'Max number of results to return',
+		routing: {
+			send: {
+				type: 'query',
+				property: 'limit',
+			},
+		},
+	},
+	{
+		displayName: 'Cursor',
+		name: 'resultsByIdCursor',
+		type: 'string',
+		default: '',
+		displayOptions: { show: showForRecipeResultsById },
+		description: 'Pagination cursor returned from a previous request',
+		routing: {
+			send: {
+				type: 'query',
+				property: 'cursor',
+				value: '={{$value || undefined}}',
+			},
+		},
+	},
+];
+
 /* ─── URL resource ───────────────────────────────────────────────────────── */
 
 const urlOperationDescription: INodeProperties = {
@@ -197,12 +346,16 @@ const urlOperationDescription: INodeProperties = {
 		{
 			name: 'Extract URLs',
 			value: 'extractUrls',
-			action: 'Map all pages on a website',
+			// eslint-disable-next-line n8n-nodes-base/node-param-operation-option-action-miscased -- "URLs" is an acronym
+			action: 'Extract all URLs from a website',
 			description: 'Discover all URLs on a site via its sitemap. No credits consumed.',
 			routing: {
 				request: {
 					method: 'POST',
 					url: '/extract-urls',
+				},
+				output: {
+					postReceive: [splitExtractedUrls],
 				},
 			},
 		},
@@ -665,6 +818,7 @@ export class SimpleScraper implements INodeType {
 			recipeIdDescription,
 			...recipeRunDescription,
 			...recipeResultsPaginationDescription,
+			...recipeResultsByIdDescription,
 
 			/* ── URL operations ── */
 			urlOperationDescription,
