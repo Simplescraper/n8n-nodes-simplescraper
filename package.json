@@ -1,6 +1,6 @@
 {
 	"name": "n8n-nodes-simplescraper",
-	"version": "0.1.4",
+	"version": "0.2.0",
 	"description": "n8n community node for Simplescraper — web scraping API",
 	"license": "MIT",
 	"homepage": "https://simplescraper.io",
